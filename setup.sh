@@ -1,7 +1,6 @@
 #!/bin/bash
 WorkingDir="$(pwd)"
-ScriptDir="${WorkingDir}/$(dirname $0)"
-
+ScriptDir="$(dirname $0)"
 if [ "$EUID" -ne 0 ]; then
 	echo "Please run the script as root"
 	exit 1
@@ -698,7 +697,6 @@ function FunctionInstallQImages {
 	local _MDA="MDA"
 	local _CAC="CAC"
 	if [ "$1" ]; then
-		echo "q alt images"
 		local _SOS="SOS_ALT"
 		local _APP="APP_ALT"
 		local _vendor="vendor_ALT"
@@ -758,11 +756,13 @@ function FunctionInstallQImages {
 	UsedSize=$(($UsedSize+$_QSize))
 	PartNeedsResize[$_APP]="1"
 	PartNeedsResize[$_vendor]="1"
-	if FunctionIsConfigured "NoFormat"; then
+	if ! FunctionIsConfigured "NoFormat"; then
 		PartFormats[$_UDA]="ext4"
 	fi
 	PartFormats[$_CAC]="ext4"
-	PartFormats[$_MDA]="ext4"
+	Files[$_MDA]="/dev/zero"
+	DDExtraArgs[$_MDA]="iflag=count_bytes count=$((${PartSizes[$_MDA]}*8*1024*1024))"
+
 	if [ "$1" ]; then
 		QAltPartitions=("${_AndroidQParts[@]}")
 	else
@@ -793,15 +793,14 @@ function FunctionInstallQZip {
 	local _vendor="vendor"
 	local _APP="APP"
 	local _LNX="LNX"
-	if [ "$2 " ]; then
+	if [ "$2" ]; then
 		local _vendor="vendor_ALT"
 		local _APP="APP_ALT"
 		local _LNX="LNX_ALT"
 	fi
-
 	local _QZip="$1"
 	echo "Extracting selected image ..."
-	mkdir -p "${ScriptDir}/tmp" > /dev/null 2>&1
+	mkdir -p "${ScriptDir}/tmp/extract" > /dev/null 2>&1
 	if ! unzip -o -d "${ScriptDir}/tmp/extract/Q" "$_QZip" "vendor.transfer.list" "system.transfer.list" "system.new.dat.br" "vendor.new.dat.br" "boot.img" > /dev/null 2>&1; then
 		echo -e "Failed to unzip selected image\n"
 		return 1
@@ -868,7 +867,7 @@ function FunctionInstallAndroidQ {
 		fi
 		if [ -f "${_SearchDir}/tegra210-icosa.dtb" ]; then
 			Files[$_DTB]="${_SearchDir}/tegra210-icosa.dtb"
-		elif [ -f "${SearchDir}/obj/KERNEL_OBJ/arch/arm64/boot/dts/tegra210-icosa.dtb" ]; then
+		elif [ -f "${_SearchDir}/obj/KERNEL_OBJ/arch/arm64/boot/dts/tegra210-icosa.dtb" ]; then
 			Files[$_DTB]="${_SearchDir}/obj/KERNEL_OBJ/arch/arm64/boot/dts/tegra210-icosa.dtb"
 		else
 			if [ $QImages ] || [ $QZipImages ]; then
@@ -915,10 +914,13 @@ function FunctionInstallAndroidQ {
 		Files[$_vendor]="${ScriptDir}/tmp/vendor.raw.img"
 		FunctionInstallQImages "$1"
 	fi
-	if [ "$1" ]; then
-		FunctionSetConfigured "AndroidAltQ"
-	else
-		FunctionSetConfigured "AndroidQ"
+	local _ret=$?
+	if [ $_ret -eq 0 ]; then
+		if [ "$1" ]; then
+			FunctionSetConfigured "AndroidAltQ"
+		else
+			FunctionSetConfigured "AndroidQ"
+		fi
 	fi
 	return 0
 }
@@ -949,7 +951,7 @@ function FunctionInstallAndroid {
 		fi
 		if [ -f "${_SearchDir}/tegra210-icosa.dtb" ]; then
 			Files[DTB]="${_SearchDir}/tegra210-icosa.dtb"
-		elif [ -f "${SearchDir}/obj/KERNEL_OBJ/arch/arm64/boot/dts/tegra210-icosa.dtb" ]; then
+		elif [ -f "${_SearchDir}/obj/KERNEL_OBJ/arch/arm64/boot/dts/tegra210-icosa.dtb" ]; then
 			Files[DTB]="${_SearchDir}/obj/KERNEL_OBJ/arch/arm64/boot/dts/tegra210-icosa.dtb"
 		else
 			if [ $QImages ] || [ $QZipImages ]; then
@@ -992,23 +994,24 @@ function FunctionInstallAndroid {
 		FunctionInstallOreo "${_SearchDir}/${_SelectedOption}"
 	fi
 	if FunctionIsInArray "$_SelectedOption" "${_QZipImages[@]}"; then
-		FunctionInstallQZip "${_SearchDir}/${_SelectedOption}"
+		if FunctionInstallQZip "${_SearchDir}/${_SelectedOption}"; then
+			FunctionInstallQImages
+		fi
 	fi
 	if FunctionIsInArray "$_SelectedOption" "${_QImages[@]}"; then
 		echo "Extracting images ..."
 		mkdir -p "${ScriptDir}/tmp" > /dev/null
-		if ! "${ScriptDir}/Tools/simg2img" "${Files[$_APP]}" "${ScriptDir}/tmp/system.raw.img"; then
+		if ! "${ScriptDir}/Tools/simg2img" "${Files[APP]}" "${ScriptDir}/tmp/system.raw.img"; then
 			echo -e "Failed to extract image\n"
 			return 1
 		fi
-		Files[$_APP]="${ScriptDir}/tmp/system.raw.img"
-		if ! "${ScriptDir}/Tools/simg2img" "${Files[$_vendor]}" "${ScriptDir}/tmp/vendor.raw.img"; then
+		Files[APP]="${ScriptDir}/tmp/system.raw.img"
+		if ! "${ScriptDir}/Tools/simg2img" "${Files[vendor]}" "${ScriptDir}/tmp/vendor.raw.img"; then
 			echo -e "Failed to extract image\n"
 			return 1
 		fi
-		Files[$_APP]="${ScriptDir}/tmp/vendor.raw.img"
+		Files[vendor]="${ScriptDir}/tmp/vendor.raw.img"
 		echo
-		FunctionInstallQImages "$1"
 		FunctionInstallQImages
 	fi
 	local _ret=$?
@@ -1117,7 +1120,7 @@ function FunctionSaveChanges {
 	echo "Formatting partitions ..."
 	for i in $(seq 0 $((${#_Partitions[@]}-1))); do
 		if [ "${PartFormats[${_Partitions[$i]}]}" ]; then
-			if ! mkfs -t ${PartFormats[${_Partitions[$i]}]} ${_Device}${PartPrefix}$(($i+1))  > /dev/null 2>&1; then
+			if ! mkfs -t ${PartFormats[${_Partitions[$i]}]} ${_Device}${PartPrefix}$(($i+1)) > /dev/null 2>&1; then
 				echo -e "Failed to write to storage device\n"
 				return 1
 			fi
@@ -1126,7 +1129,7 @@ function FunctionSaveChanges {
 	echo "Writing images ..."
 	for i in $(seq 0 $((${#_Partitions[@]}-1))); do
 		if [ "${Files[${_Partitions[$i]}]}" ]; then
-			if ! dd if="${Files[${_Partitions[$i]}]}" of="${_Device}${PartPrefix}$(($i+1))" oflag=sync bs=8M ${DDExtraArgs[${_Partitions[$i]}]}  > /dev/null 2>&1; then
+			if ! dd if="${Files[${_Partitions[$i]}]}" of="${_Device}${PartPrefix}$(($i+1))" oflag=sync bs=8M ${DDExtraArgs[${_Partitions[$i]}]} > /dev/null 2>&1; then
 				echo -e "Failed to write image to storage device\n"
 				return 1
 			fi
@@ -1147,14 +1150,14 @@ function FunctionSaveChanges {
 			mkdir -p "${ScriptDir}/tmp/mountdir" > /dev/null
 			local _PartMount
 			_PartMount="${ScriptDir}/tmp/mountdir"
-			if ! mount "${_Device}${PartPrefix}$(($i+1))" "${ScriptDir}/tmp/mountdir" > /dev/null 2>&1; then
+			if ! mount "${_Device}${PartPrefix}$(($i+1))" "${ScriptDir}/tmp/mountdir"; then
 				echo "Failed to mount storage device"
 				return 1
 			fi
 			local _ZipFiles
 			IFS=';' read -r -a _ZipFiles <<< "${PartFiles[${_Partitions[$i]}]}"
 			for j in "${_ZipFiles[@]}"; do
-				if ! unzip -o -d "$_PartMount" "$j"; then
+				if ! unzip -o -d "$_PartMount" "$j" > /dev/null 2>&1; then
 					echo -e "Failed to copy files\n"
 					return 1
 				fi
@@ -1179,14 +1182,14 @@ function FunctionSaveChanges {
 			local _ZipFiles
 			IFS=';' read -r -a _ZipFiles <<< "${BootFiles[${_Partitions[$i]}]}"
 			for j in "${_ZipFiles[@]}"; do
-				if ! unzip -o -d "$_SDFiles" "$j"; then
+				if ! unzip -o -d "$_SDFiles" "$j" > /dev/null 2>&1; then
 					echo -e "Failed to copy files\n"
 					return 1
 				fi
 			done
 		fi
 	done
-	if ! unzip -o -d "$_SDFiles" "${ScriptDir}/Files/Hekate.zip" > /dev/null 2>&1; then
+	if ! unzip -o -d "$_SDFiles" "${ScriptDir}/Files/Hekate.zip"; then
 		echo -e "Failed to copy files\n"
 		return 1
 	fi
@@ -1246,6 +1249,7 @@ function FunctionInstallL4T {
 	done
 	echo "Extracting L4T Ubuntu image ..."
 	local _L4TImageParts
+	mkdir -p "${ScriptDir}/tmp/extract/l4timage" > /dev/null
 	mapfile -t _L4TImageParts < <(7z l "$_L4TImage" | grep -o -E 'switchroot/install/l4t[.][0-9]+$')
 	if [ ${#_L4TImageParts[@]} -eq 0 ]; then
 		echo -e "L4T Ubuntu image is not valid\n"
@@ -1277,7 +1281,7 @@ function FunctionInstallL4T {
 		return 1
 	fi
 	cd -
-	local _L4TSize=$((($(stat -c%s "$_L4TImage")+(1024*1024*8)-1)/(1024*1024*8)))
+	local _L4TSize=$((($(stat -c%s "$_L4TImage1")+(1024*1024*8)-1)/(1024*1024*8)))
 	if ! FunctionIsConfigured "NoFormat"; then
 		if [ $(($_L4TSize+$UsedSize)) -gt $Size ]; then
 			echo -e "Not enough space to create partitions\n"
@@ -1296,7 +1300,7 @@ function FunctionInstallL4T {
 	BootFiles[l4t]="${ScriptDir}/tmp/L4TBootFiles.zip"
 	L4TPartitions=("${L4TPartitions[@]}" "l4t")
 	FunctionAdjustParts "l4t"
-	FunctionSetConfigured "l4t"
+	FunctionSetConfigured "L4T"
 }
 
 function FunctionAddEmuMMC {
