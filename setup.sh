@@ -2,6 +2,13 @@
 WorkingDir="$(pwd)"
 ScriptDir="${WorkingDir}/$(dirname $0)"
 
+if [ "$EUID" -ne 0 ]; then
+	echo "Please run the script as root"
+	exit 1
+fi
+
+echo -e "SwitchSDSetup v.2 - https://github.com/lulle2007200/SDSetup\n"
+
 function FunctionMissingArgument {
 	echo "Error: Missing argument"
 	return 0
@@ -854,6 +861,7 @@ function FunctionInstallAndroidQ {
 		local _QImages
 		if	[ -f "${_SearchDir}/system.img" ] && [ -f "${_SearchDir}/vendor.img" ] && [ -f "${_SearchDir}/boot.img" ]; then
 			_QImages=("Android Q")
+
 			Files[$_APP]="${_SearchDir}/system.img"
 			Files[$_vendor]="${_SearchDir}/vendor.img"
 			Files[$_LNX]="${_SearchDir}/boot.img"
@@ -893,6 +901,18 @@ function FunctionInstallAndroidQ {
 		fi
 	fi
 	if FunctionIsInArray "$_SelectedOption" "${_QImages[@]}"; then
+		echo "Extracting images ..."
+		mkdir -p "${ScriptDir}/tmp" > /dev/null
+		if ! "${ScriptDir}/Tools/simg2img" "${Files[$_APP]}" "${ScriptDir}/tmp/system.raw.img"; then
+			echo -e "Failed to extract image\n"
+			return 1
+		fi
+		Files[$_APP]="${ScriptDir}/tmp/system.raw.img"
+		if ! "${ScriptDir}/Tools/simg2img" "${Files[$_vendor]}" "${ScriptDir}/tmp/vendor.raw.img"; then
+			echo -e "Failed to extract image\n"
+			return 1
+		fi
+		Files[$_vendor]="${ScriptDir}/tmp/vendor.raw.img"
 		FunctionInstallQImages "$1"
 	fi
 	if [ "$1" ]; then
@@ -975,6 +995,20 @@ function FunctionInstallAndroid {
 		FunctionInstallQZip "${_SearchDir}/${_SelectedOption}"
 	fi
 	if FunctionIsInArray "$_SelectedOption" "${_QImages[@]}"; then
+		echo "Extracting images ..."
+		mkdir -p "${ScriptDir}/tmp" > /dev/null
+		if ! "${ScriptDir}/Tools/simg2img" "${Files[$_APP]}" "${ScriptDir}/tmp/system.raw.img"; then
+			echo -e "Failed to extract image\n"
+			return 1
+		fi
+		Files[$_APP]="${ScriptDir}/tmp/system.raw.img"
+		if ! "${ScriptDir}/Tools/simg2img" "${Files[$_vendor]}" "${ScriptDir}/tmp/vendor.raw.img"; then
+			echo -e "Failed to extract image\n"
+			return 1
+		fi
+		Files[$_APP]="${ScriptDir}/tmp/vendor.raw.img"
+		echo
+		FunctionInstallQImages "$1"
 		FunctionInstallQImages
 	fi
 	local _ret=$?
