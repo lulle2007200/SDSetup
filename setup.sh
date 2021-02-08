@@ -320,7 +320,7 @@ function FunctionSetDevice {
 				;;
 				*)
 					_Title="Selected device is Switch $_Model.\nSelect \"SD card\" or \"eMMC RAW GPP\" in Hekate USB Tools, other options are not supported."
-					_Menu=("Backup" "Restore from backup" "Back" "Exit")
+					_Menu=("Backup" "Continue" "Restore from backup" "Back" "Exit")
 				;;
 			esac
 		else
@@ -805,18 +805,18 @@ function FunctionInstallQZip {
 		echo -e "Failed to unzip selected image\n"
 		return 1
 	fi
-	if ! "${ScriptDir}/Tools/brotli" -f -j --decompress "${ScriptDir}/tmp/extract/Q/vendor.new.dat.br" "${ScriptDir}/tmp/extract/Q/system.new.dat.br" > /dev/null 2>&1; then
-		echo -e "Failed to decompress selected image\n"
-		return 1
-	fi
-	if ! "${ScriptDir}/Tools/dat2img.sh" --transfer-list "${ScriptDir}/tmp/extract/Q/system.transfer.list" --data-file "${ScriptDir}/tmp/extract/Q/system.new.dat" > /dev/null 2>&1; then
-		echo -e "Failed to read selected image\n"
-		return 1
-	fi
-	if ! "${ScriptDir}/Tools/dat2img.sh" --transfer-list "${ScriptDir}/tmp/extract/Q/vendor.transfer.list" --data-file "${ScriptDir}/tmp/extract/Q/vendor.new.dat" > /dev/null 2>&1; then
-		echo -e "Failed to read selected image\n"
-		return 1
-	fi
+        if ! "${ScriptDir}/Tools/brotli" -f -j --decompress "${ScriptDir}/tmp/extract/Q/vendor.new.dat.br" "${ScriptDir}/tmp/extract/Q/system.new.dat.br"; then
+                echo -e "Failed to decompress selected image\n"
+                return 1
+        fi
+        if ! "${ScriptDir}/Tools/dat2img.sh" --transfer-list "${ScriptDir}/tmp/extract/Q/system.transfer.list" --data-file "${ScriptDir}/tmp/extract/Q/system.new.dat"; then
+                echo -e "Failed to read selected image\n"
+                return 1
+        fi
+        if ! "${ScriptDir}/Tools/dat2img.sh" --transfer-list "${ScriptDir}/tmp/extract/Q/vendor.transfer.list" --data-file "${ScriptDir}/tmp/extract/Q/vendor.new.dat"; then
+                echo -e "Failed to read selected image\n"
+                return 1
+        fi
 	Files[$_vendor]="${ScriptDir}/tmp/extract/Q/vendor.new.dat.img"
 	Files[$_APP]="${ScriptDir}/tmp/extract/Q/system.new.dat.img"
 	Files[$_LNX]="${ScriptDir}/tmp/extract/Q/boot.img"
@@ -1077,10 +1077,7 @@ function FunctionSaveChanges {
 	if ! FunctionIsConfigured "NoFormat"; then
 		_Partitions=("${HosPartitions[@]}" "${AndroidPartitions[@]}" "${QAltPartitions[@]}" "${L4TPartitions[@]}" "${EmummcPartitions[@]}")
 		echo "Formatting storage device ..."
-		if ! parted "$_Device" --script mklabel gpt > /dev/null 2>&1; then
-			echo -e "Failed to write to storage device\n"
-			return 1
-		fi
+	parted "$_Device" --script mklabel gpt
 		local _PartBegin="8M"
 		local _MBRParts=()
 		local _MBRCodes=()
