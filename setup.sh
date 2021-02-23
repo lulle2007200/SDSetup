@@ -856,7 +856,7 @@ function FunctionInstallAndroidQ {
 	local _SearchDir="${WorkingDir}"
 	while true; do
 		local _QZipImages
-		mapfile -t _QZipImages < <(ls "$_SearchDir" | grep -E '^lineage-17.1-[0-9]{8}-UNOFFICIAL-(foster|foster_tab|icosa)[.]zip$')
+		mapfile -t _QZipImages < <(ls "$_SearchDir" | grep -E '^lineage-1[7-8].1-[0-9]{8}-UNOFFICIAL-(foster|foster_tab|icosa|icosa_sr|icosa_tv_sr)[.]zip$')
 		local _QImages
 		if	[ -f "${_SearchDir}/system.img" ] && [ -f "${_SearchDir}/vendor.img" ] && [ -f "${_SearchDir}/boot.img" ]; then
 			_QImages=("Android Q")
