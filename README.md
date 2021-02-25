@@ -1,5 +1,7 @@
 ### SwitchSDSetup v.2
 
+### Only use if you know what youre doing, not updated in a few months, may or may not work
+
 Install 7zip, python and python-usb before running the script.
 
 Tested on Ubuntu, may or may not work on other distros, may or may not work on VM.
@@ -18,13 +20,5 @@ The script supports installing l4t ubuntu, android oreo, up to 2 EmuMMCs, up to 
 
 To install Android Q, place tegra210-icosa.dtb and lineage-17.1-[date]-UNOFFICIAL-[model].zip or tegra210-icosa.dtb and system.img, vendor.img, boot.img in a directory and start the script from that directory (or, if you dont start the script from there, navigate to that directory on image selection)
 
-## Important: 
-Android Q has not released yet, you will have to build it yourself, check out the switchroot discord for instructions.
-Please do ***NOT*** ask for prebuilt images, it releases when it releases, which can be in a day, in a week or in a year.
-If you want to install a second Android Q image, it has to be built with the files from Files/lineage.zip (extract to your source directory, overwrite existing files).
-
-For questions, open an issue, ask via discord pm (Nautilus#8264) or ping me in the switchroot discord.
-
-Feel free to report any issues or create pull requests (to clean up the script).
 
 As always, im not responsible, if your switch ends up as paperweight, you overwrite your eMMC and dont have a backup or your house burns down.
