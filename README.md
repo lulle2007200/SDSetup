@@ -1,7 +1,3 @@
-### SwitchSDSetup v.2
-
-### Only use if you know what youre doing, not updated in a few months, may or may not work
-
 Install 7zip, python and python-usb before running the script.
 
 Tested on Ubuntu, may or may not work on other distros, may or may not work on VM.
