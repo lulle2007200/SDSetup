@@ -1,3 +1,5 @@
+***MOSTLY OBSOLETE, NOT MAINTAINED - USE HEKATE INSTEAD***
+
 Install 7zip, python and python-usb before running the script.
 
 Tested on Ubuntu, may or may not work on other distros, may or may not work on VM.
